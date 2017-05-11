@@ -1,5 +1,7 @@
 #include <SDL.hpp>
 
+#include <SDL.h>
+
 using namespace tetra;
 
 SDL::SDL()
@@ -20,4 +22,3 @@ SDL::~SDL()
         SDL_Quit();
     }
 }
-

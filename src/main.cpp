@@ -1,5 +1,6 @@
 #include <iostream>
 #include <SDL.hpp>
+#include <exception>
 
 using namespace std;
 
