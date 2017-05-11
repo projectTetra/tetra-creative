@@ -8,6 +8,7 @@ SDLException::SDLException(const std::string& msg)
 {
     completeMsg = "SDLException: " + msg
                 + "\nSDL_GetError() -> " + SDL_GetError();
+    SDL_ClearError();
 }
 
 const char*
