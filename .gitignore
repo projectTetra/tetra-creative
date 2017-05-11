@@ -1,6 +1,7 @@
 bin/
 build/
 *.swp
+tetra-creative
 
 compile_commands.json
 cmake_install.cmake
