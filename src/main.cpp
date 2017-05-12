@@ -1,6 +1,8 @@
 #include <SDLWindow.hpp>
 #include <SDLException.hpp>
 #include <SDL.hpp>
+#include <GL/glew.h>
+#include <GL/gl.h>
 
 #include <exception>
 #include <iostream>
@@ -12,12 +14,12 @@ int main()
 {
     tetra::SDL sdl{};
 
-    cout << "hello world" << endl;
-
     try
     {
-        cout << "about to create window" << endl;
-        SDLWindow window{sdl};
+        SDLWindow window = SDLWindow::Builder{sdl}
+            .x(400)
+            .width(1200)
+            .build();
 
         auto shouldExit = false;
         auto event = SDL_Event{};
@@ -27,9 +29,11 @@ int main()
             {
                 if (event.type == SDL_QUIT)
                 {
-                    cout << "quitting" << endl;
                     shouldExit = true;
                 }
+
+                glClearColor(1.0, 1.0, 1.0, 1.0);
+                glClear(GL_COLOR_BUFFER_BIT);
 
                 window.gl_SwapWindow();
             }
@@ -39,8 +43,6 @@ int main()
     {
         cout << ex.what() << endl;
     }
-
-    cout << "end program" << endl;
 
     return 0;
 }
