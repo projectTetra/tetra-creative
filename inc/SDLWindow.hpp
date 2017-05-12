@@ -14,6 +14,10 @@ namespace tetra
         SDLWindow(SDLWindow&&) noexcept;
         ~SDLWindow();
 
+        /**
+         * Call SDL_GL_SwapWindow with the underlying window.
+         */
+        void gl_SwapWindow() noexcept;
     private:
         SDL_Window* handle;
     };

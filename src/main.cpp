@@ -19,10 +19,21 @@ int main()
         cout << "about to create window" << endl;
         SDLWindow window{sdl};
 
-        cout << "wait 2000 ms" << endl;
-        SDL_Delay(2000);
+        auto shouldExit = false;
+        auto event = SDL_Event{};
+        while (!shouldExit)
+        {
+            while (SDL_PollEvent(&event))
+            {
+                if (event.type == SDL_QUIT)
+                {
+                    cout << "quitting" << endl;
+                    shouldExit = true;
+                }
 
-        cout << "destroy window" << endl;
+                window.gl_SwapWindow();
+            }
+        }
     }
     catch (SDLException& ex)
     {
