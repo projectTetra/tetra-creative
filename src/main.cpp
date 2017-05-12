@@ -31,12 +31,12 @@ int main()
                 {
                     shouldExit = true;
                 }
-
-                glClearColor(1.0, 1.0, 1.0, 1.0);
-                glClear(GL_COLOR_BUFFER_BIT);
-
-                window.gl_SwapWindow();
             }
+
+            glClearColor(1.0, 1.0, 1.0, 1.0);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            window.gl_SwapWindow();
         }
     }
     catch (SDLException& ex)
