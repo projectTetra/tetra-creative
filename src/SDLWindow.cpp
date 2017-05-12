@@ -33,18 +33,12 @@ Builder::width(int w)
 SDLWindow
 Builder::build()
 {
-    auto flags = SDL_WINDOW_OPENGL;
     auto windowHandle = SDL_CreateWindow(
         _title.c_str(),
         _x, _y,
         _w, _h,
-        flags
+        SDL_WINDOW_OPENGL
     );
-
-    if (windowHandle == nullptr)
-    {
-        throw SDLException{"Error creating SDLWindow!"};
-    }
 
     auto window = SDLWindow{windowHandle};
     window.gl_CreateContext();
@@ -53,7 +47,12 @@ Builder::build()
 
 SDLWindow::SDLWindow(SDL_Window* myHandle)
     : handle{myHandle}
-{ }
+{
+    if (handle == nullptr)
+    {
+        throw SDLException{"Error creating SDLWindow!"};
+    }
+}
 
 SDLWindow::SDLWindow(SDLWindow&& from) noexcept
 {

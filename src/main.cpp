@@ -12,11 +12,10 @@ using namespace tetra;
 
 int main()
 {
-    tetra::SDL sdl{};
-
+    auto sdl = SDL{};
     try
     {
-        SDLWindow window = SDLWindow::Builder{sdl}
+        auto window = SDLWindow::Builder{sdl}
             .x(400)
             .width(1200)
             .build();
