@@ -6,6 +6,7 @@
 #include <sstream>
 
 using namespace tetra;
+using namespace std;
 using Builder = GLContext::Builder;
 
 namespace
@@ -18,6 +19,8 @@ namespace
      */
     void initGlew(const GLContext& context)
     {
+        // initialize
+        glewExperimental = true;
         auto result = glewInit();
         if (result != GLEW_NO_ERROR)
         {
@@ -25,6 +28,22 @@ namespace
                               , (const char*)glewGetErrorString(result)
                               });
         }
+
+        // A weird bug with GL/Glew will cause a GL_INVALID_ENUM to be raised
+        // during initialization. This _shouldn't_ negatively impact the program,
+        // so check for the error and swallow the expected here.
+        auto glErr = glGetError();
+        if (glErr != GL_NO_ERROR && glErr != GL_INVALID_ENUM)
+        {
+            stringstream ss;
+            ss << result;
+            throw GLException{ "Unexpected GL error while initializing glew!"
+                             , "Error Code " + ss.str()
+                             };
+        }
+
+        // If there were more errors than just the one.. it's a problem so throw
+        THROW_ON_GL_ERROR();
     }
 }
 
@@ -81,7 +100,10 @@ Builder::build()
 
 GLContext::GLContext(SDL_GLContext context)
     : context{context}
-{ }
+{
+    // let's start with a clean slate!
+    THROW_ON_GL_ERROR();
+}
 
 GLContext::GLContext(GLContext&& from)
     : context{from.context}
