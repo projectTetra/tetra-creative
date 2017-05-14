@@ -1,5 +1,5 @@
 // Identity Shader
-#version 330
+#version 130
 
 in vec4 vertex;
 

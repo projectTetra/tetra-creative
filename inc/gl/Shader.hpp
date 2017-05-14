@@ -44,6 +44,11 @@ namespace tetra
          * @throws GLException if there is an issue while compiling the shader.
          */
         void compile(const std::string& source);
+
+        /**
+         * Return a non-owning reference to the OpenGL shader.
+         */
+        GLuint raw();
     private:
         bool shouldDestroy;
         GLuint handle;

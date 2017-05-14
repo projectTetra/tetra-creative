@@ -1,7 +1,7 @@
 #include <SDLWindow.hpp>
 #include <SDLException.hpp>
 #include <Assets.hpp>
-#include <gl/Shader.hpp>
+#include <gl/Program.hpp>
 #include <gl/GLException.hpp>
 #include <SDL.hpp>
 #include <GL/glew.h>
@@ -23,8 +23,17 @@ void sdlmain()
         .minorVersion(3)
         .build();
 
-    auto shader = Shader{ShaderType::VERTEX};
-    shader.compile(loadShaderSrc("identity.vert"));
+    auto vertex = Shader{ShaderType::VERTEX};
+    vertex.compile(loadShaderSrc("identity.vert"));
+
+    auto fragment = Shader{ShaderType::FRAGMENT};
+    fragment.compile(loadShaderSrc("identity.frag"));
+
+    auto program = ProgramLinker{}
+        .vertexAttributes({"vertex"})
+        .attach(vertex)
+        .attach(fragment)
+        .link();
 
     auto shouldExit = false;
     auto event = SDL_Event{};

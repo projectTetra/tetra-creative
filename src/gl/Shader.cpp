@@ -57,3 +57,9 @@ Shader::compile(const string& source)
                           });
     }
 }
+
+GLuint
+Shader::raw()
+{
+    return handle;
+}
