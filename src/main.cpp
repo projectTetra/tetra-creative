@@ -1,5 +1,7 @@
 #include <SDLWindow.hpp>
 #include <SDLException.hpp>
+#include <Assets.hpp>
+#include <gl/Shader.hpp>
 #include <gl/GLException.hpp>
 #include <SDL.hpp>
 #include <GL/glew.h>
@@ -20,6 +22,9 @@ void sdlmain()
         .majorVersion(3)
         .minorVersion(1)
         .build();
+
+    auto shader = Shader{ShaderType::VERTEX};
+    shader.compile(loadShaderSrc("identity.vert"));
 
     auto shouldExit = false;
     auto event = SDL_Event{};
