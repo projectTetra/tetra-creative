@@ -20,7 +20,7 @@ void sdlmain()
 
     auto gl = window.contextBuilder()
         .majorVersion(3)
-        .minorVersion(1)
+        .minorVersion(3)
         .build();
 
     auto shader = Shader{ShaderType::VERTEX};
