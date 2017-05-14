@@ -24,3 +24,5 @@ file(GLOB_RECURSE TC_SOURCES "inc/*.hpp" "src/*.cpp")
 add_executable (tetra-creative ${TC_SOURCES})
 target_link_libraries(tetra-creative ${SDL2_LIBRARY})
 target_link_libraries(tetra-creative ${OPENGL_LIBRARIES})
+target_link_libraries(tetra-creative ${GLEW_LIBRARY})
+

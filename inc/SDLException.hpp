@@ -11,7 +11,7 @@ namespace tetra
      * It carries the message provided by the ctor and the value of SDL_GetError()
      * at the time when the exception was constructed.
      */
-    class SDLException : std::exception
+    class SDLException : public std::exception
     {
     public:
         SDLException(const std::string& msg);

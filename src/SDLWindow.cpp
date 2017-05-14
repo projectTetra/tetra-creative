@@ -6,7 +6,8 @@
 
 using namespace tetra;
 
-typedef SDLWindow::Builder Builder;
+using Frame = SDLWindow::Frame;
+using Builder = SDLWindow::Builder;
 
 Builder::Builder(const SDL&)
     : _x{SDL_WINDOWPOS_UNDEFINED}
@@ -24,9 +25,30 @@ Builder::x(int x)
 }
 
 Builder&
+Builder::y(int y)
+{
+    this->_y = y;
+    return *this;
+}
+
+Builder&
 Builder::width(int w)
 {
     this->_w = w;
+    return *this;
+}
+
+Builder&
+Builder::height(int h)
+{
+    this->_h = h;
+    return *this;
+}
+
+Builder&
+Builder::title(const std::string& title)
+{
+    this->_title = title;
     return *this;
 }
 
@@ -40,9 +62,35 @@ Builder::build()
         SDL_WINDOW_OPENGL
     );
 
-    auto window = SDLWindow{windowHandle};
-    window.gl_CreateContext();
-    return window;
+    return SDLWindow{windowHandle};
+}
+
+Frame::Frame(SDLWindow& window)
+    : window{window}
+    , completed{false}
+{ }
+
+Frame::Frame(Frame&& from)
+    : window{from.window}
+    , completed{from.completed}
+{
+    // ensure the window's back buffer is only swapped once
+    from.completed = true;
+}
+
+Frame::~Frame()
+{
+    complete();
+}
+
+void
+Frame::complete()
+{
+    if (!completed)
+    {
+        window.gl_SwapWindow();
+        completed = true;
+    }
 }
 
 SDLWindow::SDLWindow(SDL_Window* myHandle)
@@ -65,7 +113,20 @@ SDLWindow::~SDLWindow()
     if (handle != nullptr)
     {
         SDL_DestroyWindow(handle);
+        handle = nullptr;
     }
+}
+
+GLContext::Builder
+SDLWindow::contextBuilder()
+{
+    return GLContext::Builder(handle);
+}
+
+Frame
+SDLWindow::draw()
+{
+    return Frame(*this);
 }
 
 void
