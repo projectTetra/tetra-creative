@@ -1,12 +1,18 @@
 cmake_minimum_required (VERSION 3.1)
 project (tetra-creative)
 
+message ("source: " ${CMAKE_CURRENT_SOURCE_DIR})
+message ("binary: " ${CMAKE_CURRENT_BINARY_DIR})
+
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_MODULE_PATH cmake)
 
 set (GCC_COMPILE_FLAGS "-std=c++11")
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}")
+
+set (ASSET_ROOT ${CMAKE_BINARY_DIR}/assets)
+configure_file ("./metasrc/AssetRoot.h.in" "./inc/AssetRoot.h")
 
 find_package (OpenGL REQUIRED)
 
