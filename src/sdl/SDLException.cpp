@@ -1,4 +1,4 @@
-#include <SDLException.hpp>
+#include <sdl/SDLException.hpp>
 
 #include <SDL.h>
 

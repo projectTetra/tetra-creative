@@ -1,10 +1,8 @@
-#include <SDLWindow.hpp>
-#include <SDLException.hpp>
+#include <sdl/SDLWindow.hpp>
 #include <Assets.hpp>
 #include <gl/Program.hpp>
 #include <gl/GLException.hpp>
 #include <gl/VAO.hpp>
-#include <SDL.hpp>
 #include <GL/glew.h>
 #include <GL/gl.h>
 
@@ -35,7 +33,7 @@ ostream& operator<<(ostream& out, const Vertex& vertex)
 void sdlmain()
 {
     auto sdl = SDL{};
-    auto window = SDLWindow::Builder{sdl}.build();
+    auto window = SDLWindow::Builder{}.build();
 
     auto gl = window.contextBuilder()
         .majorVersion(3)
