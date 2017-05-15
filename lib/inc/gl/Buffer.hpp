@@ -87,6 +87,7 @@ namespace tetra
         Buffer(BindTarget target)
             : target{target}
             , shouldDelete{true}
+            , _size{0}
         {
             glCreateBuffers(1, &handle);
         }
@@ -115,9 +116,11 @@ namespace tetra
             : shouldDelete{from.shouldDelete}
             , handle{from.handle}
             , target{from.target}
+            , _size{from._size}
         {
             // don't let the other guy delete our buffer when he goes out of scope!
             from.shouldDelete = false;
+            from._size = 0;
         }
 
         /**
@@ -155,6 +158,7 @@ namespace tetra
             auto byteSize = data.size() * sizeof(Data);
             glBufferData(target, byteSize, data.data(), usage);
             THROW_ON_GL_ERROR();
+            this->_size = data.size();
         }
 
         /**
@@ -180,7 +184,16 @@ namespace tetra
             return std::vector<Data>(data.get(), data.get()+byteSize);
         }
 
+        /**
+         * Return's the the number of elements stored in the GL buffer.
+         */
+        int size()
+        {
+            return _size;
+        }
+
     private:
+        int _size;
         BindTarget target;
         bool shouldDelete;
         GLuint handle;
