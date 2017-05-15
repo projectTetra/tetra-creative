@@ -1,4 +1,4 @@
-#include <GLContext.hpp>
+#include <sdl/GLContext.hpp>
 #include <sdl/SDLException.hpp>
 #include <gl/GLException.hpp>
 

@@ -2,7 +2,7 @@
 #define SDL_WINDOW_HPP
 
 #include <sdl/SDL.hpp>
-#include <GLContext.hpp>
+#include <sdl/GLContext.hpp>
 
 #include <SDL.h>
 

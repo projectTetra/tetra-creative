@@ -1,10 +1,7 @@
 #include <sdl/SDLWindow.hpp>
 #include <Assets.hpp>
 #include <gl/Program.hpp>
-#include <gl/GLException.hpp>
 #include <gl/VAO.hpp>
-#include <GL/glew.h>
-#include <GL/gl.h>
 
 #include <exception>
 #include <iostream>
