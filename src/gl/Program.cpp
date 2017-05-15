@@ -2,6 +2,7 @@
 #include <gl/GLException.hpp>
 
 #include <algorithm>
+#include <iostream>
 
 using namespace std;
 using namespace tetra;
