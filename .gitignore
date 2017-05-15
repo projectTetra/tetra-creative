@@ -4,6 +4,7 @@ build/
 *.a
 tetra-creative
 
+firstTriangle
 AssetRoot.h
 
 compile_commands.json

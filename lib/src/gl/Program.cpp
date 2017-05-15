@@ -14,13 +14,13 @@ namespace
 
 Program::Program()
     : shouldDelete{true}
-    , programId{glCreateProgram()}
+    , handle{glCreateProgram()}
 { }
 
 Program::Program(Program&& from)
 {
     shouldDelete = from.shouldDelete;
-    programId = from.programId;
+    handle = from.handle;
 
     // Don't let 'from' delete my program now that I own it!
     from.shouldDelete = false;
@@ -30,7 +30,7 @@ Program::~Program()
 {
     if (shouldDelete)
     {
-        glDeleteProgram(programId);
+        glDeleteProgram(handle);
         shouldDelete = false;
     }
 }
@@ -38,7 +38,13 @@ Program::~Program()
 GLuint
 Program::raw()
 {
-    return programId;
+    return handle;
+}
+
+void
+Program::use()
+{
+    glUseProgram(handle);
 }
 
 ProgramLinker&

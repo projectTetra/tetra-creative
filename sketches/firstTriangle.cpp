@@ -76,7 +76,7 @@ void sdlmain()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         vao.bind();
-        glUseProgram(program.raw());
+        program.use();
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
         THROW_ON_GL_ERROR();

@@ -40,9 +40,14 @@ namespace tetra
          */
         GLuint raw();
 
+        /**
+         * Use this program for the next OpenGL draw.
+         */
+        void use();
+
     private:
         bool shouldDelete;
-        GLuint programId;
+        GLuint handle;
     };
 
     /**
