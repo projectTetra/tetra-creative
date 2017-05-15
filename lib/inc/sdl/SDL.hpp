@@ -1,8 +1,6 @@
 #ifndef SDL_HPP
 #define SDL_HPP
 
-#include <SDLfwd.hpp>
-
 namespace tetra
 {
     class SDL

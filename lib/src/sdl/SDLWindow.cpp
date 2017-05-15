@@ -1,6 +1,6 @@
-#include <SDLWindow.hpp>
-#include <SDLException.hpp>
-#include <SDL.hpp>
+#include <sdl/SDLWindow.hpp>
+#include <sdl/SDLException.hpp>
+#include <sdl/SDL.hpp>
 
 #include <SDL.h>
 
@@ -9,7 +9,7 @@ using namespace tetra;
 using Frame = SDLWindow::Frame;
 using Builder = SDLWindow::Builder;
 
-Builder::Builder(const SDL&)
+Builder::Builder()
     : _x{SDL_WINDOWPOS_UNDEFINED}
     , _y{SDL_WINDOWPOS_UNDEFINED}
     , _w{800}

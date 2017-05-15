@@ -1,21 +1,31 @@
 #ifndef SDL_WINDOW_HPP
 #define SDL_WINDOW_HPP
 
-#include <GLContext.hpp>
-#include <SDLfwd.hpp>
+#include <sdl/SDL.hpp>
+#include <sdl/GLContext.hpp>
+
 #include <SDL.h>
 
 #include <string>
 
 namespace tetra
 {
+    /**
+     * This class owns an instance of SDL_Window.
+     */
     class SDLWindow
     {
     public:
+        /**
+         * This class is responsible for configuring and building a SDLWindow.
+         */
         class Builder
         {
         public:
-            Builder(const SDL&);
+            /**
+             * Create a new SDLWindow builder.
+             */
+            Builder();
 
             /**
              * Set the window's initial x position -- defaults to SDL_WINDOWPOS_UNDEFINED.
@@ -56,11 +66,27 @@ namespace tetra
             std::string _title;
         };
 
+        /**
+         * This class represents the current frame which is being used as a render target.
+         * Eventually there will probably be a framebuffer abstraction of some kind
+         * which this will play with.
+         */
         class Frame
         {
         public:
+            /**
+             * Create a new frame for the window.
+             */
             Frame(SDLWindow&);
+
+            /**
+             * Transfer ownership of the frame.
+             */
             Frame(Frame&&);
+
+            /**
+             * Frames cannot be copied.
+             */
             Frame(const Frame&) = delete;
 
             /**
@@ -75,13 +101,23 @@ namespace tetra
              */
             void complete();
         private:
-
             SDLWindow& window;
             bool completed;
         };
 
+        /**
+         * Windows cannot be copied.
+         */
         SDLWindow(const SDLWindow&) = delete;
-        SDLWindow(SDLWindow&&) noexcept;
+
+        /**
+         * Transfer ownership of the window.
+         */
+        SDLWindow(SDLWindow&& from) noexcept;
+
+        /**
+         * Destroy the window.
+         */
         ~SDLWindow();
 
         /**
@@ -95,6 +131,11 @@ namespace tetra
          * of scope or is completed.
          */
         Frame draw();
+
+        /**
+         * Get a non-owning handle to the underlyng SDL_Window pointer.
+         */
+        SDL_Window* raw() const;
     private:
         /**
          * Create a SDL OpenGL context for the window.
@@ -108,9 +149,9 @@ namespace tetra
         void gl_SwapWindow() noexcept;
 
         /**
-         * Create a new SDLWindow which owns the provide SDL_Window handle.
+         * Take ownership of a SDL_Window* handle.
          */
-        SDLWindow(SDL_Window*);
+        SDLWindow(SDL_Window* handle);
 
         SDL_Window* handle;
     };

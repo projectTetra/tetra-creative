@@ -1,7 +1,10 @@
 bin/
 build/
 *.swp
+*.a
 tetra-creative
+
+AssetRoot.h
 
 compile_commands.json
 cmake_install.cmake
