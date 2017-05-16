@@ -2,6 +2,7 @@
 #include <sdl/SDLException.hpp>
 #include <sdl/SDL.hpp>
 
+#include <GL/glew.h>
 #include <SDL.h>
 
 using namespace tetra;
@@ -68,7 +69,11 @@ Builder::build()
 Frame::Frame(SDLWindow& window)
     : window{window}
     , completed{false}
-{ }
+{
+    int w, h;
+    SDL_GL_GetDrawableSize(window.raw(), &w, &h);
+    glViewport(0, 0, w, h);
+}
 
 Frame::Frame(Frame&& from)
     : window{from.window}
