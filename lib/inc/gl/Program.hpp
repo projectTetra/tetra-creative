@@ -3,12 +3,42 @@
 
 #include <gl/Shader.hpp>
 
+#include <GL/glew.h>
+
+#include <array>
 #include <vector>
 #include <string>
-#include <GL/glew.h>
 
 namespace tetra
 {
+    namespace uniforms
+    {
+        /**
+         * Set the value of a scalar float uniform.
+         */
+        void uniformValue(GLint location, float f);
+
+        /**
+         * Set the value of a 1-element float vector.
+         */
+        void uniformValue(GLint location, const std::array<float, 1>& vec);
+
+        /**
+         * Set the value of a 2-element float vector.
+         */
+        void uniformValue(GLint location, const std::array<float, 2>& vec);
+
+        /**
+         * Set the value of a 3-element float vector.
+         */
+        void uniformValue(GLint location, const std::array<float, 3>& vec);
+
+        /**
+         * Set the value of a 4-element float vector.
+         */
+        void uniformValue(GLint location, const std::array<float, 4>& vec);
+    }
+
     /**
      * This class represents an OpenGL Program object.
      */
@@ -44,6 +74,23 @@ namespace tetra
          * Use this program for the next OpenGL draw.
          */
         void use();
+
+        /**
+         * Lookup a uniform location in the program.
+         * Effectively just calls glGetUniformLocation.
+         */
+        GLint uniformLocation(const std::string& uniform);
+
+        /**
+         * Set a uniform in the program.
+         * To enable for a type T define an overload of
+         * uniformValue(GLint location, const T& t)
+         */
+        template <class UType>
+        void uniform(GLint location, UType& type)
+        {
+            tetra::uniforms::uniformValue(location, type);
+        }
 
     private:
         bool shouldDelete;

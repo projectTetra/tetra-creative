@@ -5,6 +5,7 @@ build/
 tetra-creative
 
 firstTriangle
+offsetTriangle
 AssetRoot.h
 
 compile_commands.json

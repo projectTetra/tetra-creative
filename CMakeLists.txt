@@ -22,8 +22,14 @@ include_directories(lib/inc)
 add_subdirectory (lib)
 
 add_executable(firstTriangle sketches/firstTriangle.cpp)
-target_link_libraries(firstTriangle tcCore)
-target_link_libraries(firstTriangle ${SDL2_LIBRARY})
 target_link_libraries(firstTriangle ${OPENGL_LIBRARIES})
+target_link_libraries(firstTriangle ${SDL2_LIBRARY})
 target_link_libraries(firstTriangle ${GLEW_LIBRARY})
+target_link_libraries(firstTriangle tcCore)
+
+add_executable(offsetTriangle ./sketches/offsetTriangle.cpp)
+target_link_libraries(offsetTriangle ${OPENGL_LIBRARIES})
+target_link_libraries(offsetTriangle ${SDL2_LIBRARY})
+target_link_libraries(offsetTriangle ${GLEW_LIBRARY})
+target_link_libraries(offsetTriangle tcCore)
 

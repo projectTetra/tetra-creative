@@ -12,16 +12,45 @@ namespace
     constexpr int LOG_LENGTH = 1024;
 }
 
+void
+tetra::uniforms::uniformValue(GLint location, float f)
+{
+    glUniform1f(location, f);
+}
+
+void
+tetra::uniforms::uniformValue(GLint location, const array<float, 1>& vec)
+{
+    glUniform1fv(location, 1, vec.data());
+}
+
+void
+tetra::uniforms::uniformValue(GLint location, const array<float, 2>& vec)
+{
+    glUniform2fv(location, 1, vec.data());
+}
+
+void
+tetra::uniforms::uniformValue(GLint location, const array<float, 3>& vec)
+{
+    glUniform3fv(location, 1, vec.data());
+}
+
+void
+tetra::uniforms::uniformValue(GLint location, const array<float, 4>& vec)
+{
+    glUniform4fv(location, 1, vec.data());
+}
+
 Program::Program()
     : shouldDelete{true}
     , handle{glCreateProgram()}
 { }
 
 Program::Program(Program&& from)
+    : shouldDelete{from.shouldDelete}
+    , handle{from.handle}
 {
-    shouldDelete = from.shouldDelete;
-    handle = from.handle;
-
     // Don't let 'from' delete my program now that I own it!
     from.shouldDelete = false;
 }
@@ -45,6 +74,12 @@ void
 Program::use()
 {
     glUseProgram(handle);
+}
+
+GLint
+Program::uniformLocation(const string& uniform)
+{
+    return glGetUniformLocation(handle, uniform.c_str());
 }
 
 ProgramLinker&
