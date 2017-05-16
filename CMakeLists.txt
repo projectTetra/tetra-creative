@@ -14,9 +14,11 @@ configure_file ("./metasrc/AssetRoot.h.in" "./lib/inc/AssetRoot.h")
 find_package (OpenGL REQUIRED)
 find_package (GLEW REQUIRED)
 find_package (SDL2 REQUIRED)
+find_package (Boost REQUIRED)
 
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${SDL2_INCLUDE_DIR})
+include_directories(${Boost_Include_Dirs})
 include_directories(lib/inc)
 
 add_subdirectory (lib)
