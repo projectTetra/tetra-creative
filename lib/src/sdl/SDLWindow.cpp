@@ -59,7 +59,7 @@ Builder::build()
         _title.c_str(),
         _x, _y,
         _w, _h,
-        SDL_WINDOW_OPENGL
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
     );
 
     return SDLWindow{windowHandle};
@@ -127,6 +127,12 @@ Frame
 SDLWindow::draw()
 {
     return Frame(*this);
+}
+
+SDL_Window*
+SDLWindow::raw() const
+{
+    return handle;
 }
 
 void
