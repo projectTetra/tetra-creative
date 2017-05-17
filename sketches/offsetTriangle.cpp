@@ -2,12 +2,125 @@
 #include <Assets.hpp>
 #include <gl/Program.hpp>
 #include <gl/VAO.hpp>
+#include <boost/any.hpp>
 
 #include <array>
 #include <exception>
 
 using namespace std;
 using namespace tetra;
+
+class Sink
+{
+public:
+    virtual void receive(boost::any msg) = 0;
+
+    template <class SType>
+    SType& addSink(SType&& sink)
+    {
+        auto mysink = unique_ptr<Sink>(new SType(move(sink)));
+        observers.push_back(move(mysink));
+        return (SType&)*observers[observers.size()-1];
+    }
+
+protected:
+    vector<unique_ptr<Sink>> observers;
+};
+
+class DumpIntSink : public Sink
+{
+public:
+    virtual void receive(boost::any msg) override
+    {
+        auto i = boost::any_cast<int>(msg);
+        cout << "dump int sink: " << i << endl;
+    }
+};
+
+template <class T>
+class TypedSignal : public Sink
+{
+public:
+    T& value()
+    {
+        return lastValue;
+    }
+
+    virtual void receive(boost::any msg) override
+    {
+        if (msg.type() != boost::typeindex::type_id<T>())
+        {
+            return;
+        }
+        lastValue = boost::any_cast<T>(msg);
+    }
+
+private:
+    T lastValue;
+};
+
+class Observable : public Sink
+{
+public:
+    using Handler = function<boost::any(boost::any)>;
+
+    virtual void receive(boost::any msg) override
+    {
+        for (auto& observer : observers)
+        {
+            observer->receive(msg);
+        }
+    }
+};
+
+class IntFilter : public Sink
+{
+public:
+    virtual void receive(boost::any msg) override
+    {
+        if (msg.type() != boost::typeindex::type_id<int>())
+        {
+            return;
+        }
+        for (auto& observer : observers)
+        {
+            observer->receive(msg);
+        }
+    }
+};
+
+template <class In, class Out>
+class Map : public Sink
+{
+public:
+    using Func = function<Out(In)>;
+
+    Map(Func func)
+    {
+        myfunc = func;
+    }
+
+    virtual void receive(boost::any msg) override
+    {
+        if (msg.type() != boost::typeindex::type_id<In>())
+        {
+            for (auto& observer : observers)
+            {
+                observer->receive(msg);
+            }
+            return;
+        }
+        auto typedMsg = boost::any_cast<In>(msg);
+        auto result = boost::any{myfunc(typedMsg)};
+        for (auto& observer : observers)
+        {
+            observer->receive(result);
+        }
+    }
+
+private:
+    Func myfunc;
+};
 
 struct Vertex
 {
@@ -19,6 +132,21 @@ struct Vertex
 
 void sdlmain()
 {
+    auto pump = Observable{};
+    auto& signal = pump
+        .addSink(Map<int, string>{[](int i) { return to_string(i); }})
+        .addSink(TypedSignal<string>{});
+
+    auto& otherSig = pump
+        .addSink(TypedSignal<int>{});
+
+    pump.receive({3});
+    pump.receive({string("aoeu")});
+
+    cout << signal.value() << endl;
+    cout << otherSig.value() << endl;
+
+    return ;
     auto sdl = SDL{};
     auto window = SDLWindow::Builder{}.build();
     auto gl = window.contextBuilder()
