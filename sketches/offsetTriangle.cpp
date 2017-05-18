@@ -18,21 +18,26 @@ public:
 };
 
 template <class T>
-class Signal : public Transform
+class TypedTransform : public Transform
 {
 public:
-    virtual bool applies(boost::any& msg)
+    virtual bool applies(boost::any& msg) override
     {
-        return boost::typeindex::type_id<T>() == msg.type();
+        return msg.type() == boost::typeindex::type_id<T>();
     }
+};
 
-    virtual boost::any apply(boost::any& msg)
+template <class T>
+class Signal : public TypedTransform<T>
+{
+public:
+    virtual boost::any apply(boost::any& msg) override
     {
         lastValue = boost::any_cast<T>(msg);
         return msg;
     }
 
-    T& get()
+    const T& get() const
     {
         return lastValue;
     }
@@ -46,14 +51,55 @@ class Stream
 public:
     void push(boost::any msg)
     {
+        dispatchStreams(msg);
+        dispatchSignals(msg);
+    }
+
+    template <class T>
+    Stream& transform(T transform)
+    {
+        downstreams.push_back({
+            unique_ptr<Transform>{new T{transform}},
+            unique_ptr<Stream>{new Stream{}}
+        });
+        auto& last = downstreams.back();
+        return (Stream&)*last.second.get();
+    }
+
+    template <class T>
+    Signal<T>& signal()
+    {
+        signals.push_back(unique_ptr<Signal<T>>{new Signal<T>{}});
+        return (Signal<T>&)*signals.back();
+    }
+private:
+    using OwnedTransform = unique_ptr<Transform>;
+    using OwnedStream = unique_ptr<Stream>;
+
+    vector<pair<OwnedTransform, OwnedStream>> downstreams;
+    vector<unique_ptr<Transform>> signals;
+
+    void dispatchSignals(boost::any& msg)
+    {
+        for (auto& signal: signals)
+        {
+            if (signal->applies(msg))
+            {
+                signal->apply(msg);
+            }
+        }
+    }
+
+    void dispatchStreams(boost::any& msg)
+    {
         for (auto& downstream : downstreams)
         {
             auto& transform = downstream.first;
             auto& stream = downstream.second;
 
-            if (transform.applies(msg))
+            if (transform->applies(msg))
             {
-                auto transformed = transform.apply(msg);
+                auto transformed = transform->apply(msg);
                 if (!transformed.empty())
                 {
                     stream->push(transformed);
@@ -65,18 +111,39 @@ public:
             }
         }
     }
-
-    Stream& transform(Transform& transform)
-    {
-        unique_ptr<Stream> downstream;
-        Stream* streamPtr = downstream.get();
-
-        downstreams.push_back({transform, move(downstream)});
-        return *streamPtr;
-    }
-private:
-    vector<pair<Transform, unique_ptr<Stream>>> downstreams;
 };
+
+template <class In, class Out>
+class Map : public TypedTransform<In>
+{
+public:
+    using MapFctn = function<Out(In&)>;
+
+    Map(MapFctn mapper)
+        : myMap{mapper}
+    {}
+
+    virtual boost::any apply(boost::any& msg) override
+    {
+        auto& typedMsg = boost::any_cast<In&>(msg);
+        return {myMap(typedMsg)};
+    }
+
+private:
+    MapFctn myMap;
+};
+
+template <class In, class Out>
+Map<In, Out> map(function<Out(In&)> fctn)
+{
+    return Map<In, Out>{fctn};
+}
+
+template <class T>
+ostream& operator<<(ostream& out, const Signal<T>& signal)
+{
+    out << signal.get();
+}
 
 struct Vertex
 {
@@ -86,9 +153,28 @@ struct Vertex
     Vertex(float x, float y) : pos{x, y} {}
 };
 
+// THOUGHTS
+//
+// instead of creating new streams after each transform
+// let transforms modify the stream in-place
+// and have an explicit split operator?
+//
+//
+
 void sdlmain()
 {
-    return ;
+    Stream s{};
+    s.push({5});
+    s.push({string{"aoeu"}});
+
+    cout
+        << s
+        .transform(Map<int, string>([](int& i) { return "mapper: " + to_string(i); }))
+        .transform(Map<string, string>([](string& s) { return s + s; }))
+        .signal<string>()
+        << endl;
+
+    return;
     auto sdl = SDL{};
     auto window = SDLWindow::Builder{}.build();
     auto gl = window.contextBuilder()
