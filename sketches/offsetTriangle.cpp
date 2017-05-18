@@ -10,103 +10,72 @@
 using namespace std;
 using namespace tetra;
 
-class Sink
+class Transform
 {
 public:
-    virtual bool canHandle(boost::any msg) = 0;
-    virtual void receive(boost::any msg) = 0;
-
-    template <class SType>
-    SType& addSink(SType&& sink)
-    {
-        auto mysink = unique_ptr<Sink>(new SType(move(sink)));
-        observers.push_back(move(mysink));
-        return (SType&)*observers[observers.size()-1];
-    }
-
-protected:
-    void dispatch(boost::any msg)
-    {
-        for (auto& observer: observers)
-        {
-            if (observer->canHandle(msg))
-            {
-                observer->receive(msg);
-            }
-        }
-    }
-
-    vector<unique_ptr<Sink>> observers;
+    virtual bool applies(boost::any& msg) { return true; };
+    virtual boost::any apply(boost::any& msg) { return msg; };
 };
 
 template <class T>
-class TypedSignal : public Sink
+class Signal : public Transform
 {
 public:
-    T& value()
+    virtual bool applies(boost::any& msg)
     {
-        return lastValue;
+        return boost::typeindex::type_id<T>() == msg.type();
     }
 
-    virtual bool canHandle(boost::any msg) override
-    {
-        return msg.type() == boost::typeindex::type_id<T>();
-    }
-
-    virtual void receive(boost::any msg) override
+    virtual boost::any apply(boost::any& msg)
     {
         lastValue = boost::any_cast<T>(msg);
+        return msg;
+    }
+
+    T& get()
+    {
+        return lastValue;
     }
 
 private:
     T lastValue;
 };
 
-class Observable : public Sink
+class Stream
 {
 public:
-    using Handler = function<boost::any(boost::any)>;
-
-    virtual bool canHandle(boost::any msg) override { return true; }
-
-    virtual void receive(boost::any msg) override
+    void push(boost::any msg)
     {
-        dispatch(msg);
-    }
-};
-
-template <class In, class Out>
-class Map : public Sink
-{
-public:
-    using Func = function<Out(In)>;
-
-    Map(Func func)
-    {
-        myfunc = func;
-    }
-
-    virtual bool canHandle(boost::any msg) override
-    {
-        return true;
-    }
-
-    virtual void receive(boost::any msg) override
-    {
-        if (msg.type() == boost::typeindex::type_id<In>())
+        for (auto& downstream : downstreams)
         {
-            auto typedMsg = boost::any_cast<In>(msg);
-            auto result = boost::any{myfunc(typedMsg)};
-            dispatch(result);
-        }
-        else
-        {
-            dispatch(msg);
+            auto& transform = downstream.first;
+            auto& stream = downstream.second;
+
+            if (transform.applies(msg))
+            {
+                auto transformed = transform.apply(msg);
+                if (!transformed.empty())
+                {
+                    stream->push(transformed);
+                }
+            }
+            else
+            {
+                stream->push(msg);
+            }
         }
     }
 
+    Stream& transform(Transform& transform)
+    {
+        unique_ptr<Stream> downstream;
+        Stream* streamPtr = downstream.get();
+
+        downstreams.push_back({transform, move(downstream)});
+        return *streamPtr;
+    }
 private:
-    Func myfunc;
+    vector<pair<Transform, unique_ptr<Stream>>> downstreams;
 };
 
 struct Vertex
@@ -119,22 +88,6 @@ struct Vertex
 
 void sdlmain()
 {
-    auto pump = Observable{};
-    auto& signal = pump
-        .addSink(Map<int, string>{[](int i) { return to_string(i); }})
-        .addSink(Map<float, string>{[](float f) { return "turbo float " + to_string(f); }})
-        .addSink(TypedSignal<string>{});
-
-    auto& otherSig = pump
-       .addSink(TypedSignal<int>{});
-
-    pump.receive({3});
-    pump.receive({string("aoeu")});
-    pump.receive({3.12f});
-
-    cout << signal.value() << endl;
-    cout << otherSig.value() << endl;
-
     return ;
     auto sdl = SDL{};
     auto window = SDLWindow::Builder{}.build();
