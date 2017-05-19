@@ -87,9 +87,9 @@ namespace tetra
          * uniformValue(GLint location, const T& t)
          */
         template <class UType>
-        void uniform(GLint location, UType& type)
+        void uniform(GLint location, UType&& type)
         {
-            tetra::uniforms::uniformValue(location, type);
+            tetra::uniforms::uniformValue(location, std::forward<UType>(type));
         }
 
     private:

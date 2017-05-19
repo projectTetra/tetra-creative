@@ -10,147 +10,220 @@
 using namespace std;
 using namespace tetra;
 
-class Transform
+class EventStream
 {
+    using Handler = std::function<void(const boost::any&)>;
 public:
-    virtual bool applies(boost::any& msg) { return true; };
-    virtual boost::any apply(boost::any& msg) { return msg; };
-};
+    using ObserverId = int;
 
-template <class T>
-class TypedTransform : public Transform
-{
-public:
-    virtual bool applies(boost::any& msg) override
+    class AutoRemovable
     {
-        return msg.type() == boost::typeindex::type_id<T>();
-    }
-};
+    public:
+        AutoRemovable(EventStream& stream, ObserverId id);
+        AutoRemovable(const AutoRemovable& stream) = delete;
+        AutoRemovable(AutoRemovable&& autoRemovable);
+        ~AutoRemovable();
+    private:
+        bool shouldRemove;
+        ObserverId toRemove;
+        EventStream& stream;
+    };
 
-template <class T>
-class Signal : public TypedTransform<T>
-{
-public:
-    virtual boost::any apply(boost::any& msg) override
+    EventStream(int maxEventsPerUpdate = 100);
+
+    void push(boost::any event);
+
+    void update();
+
+    template <class Observer, class EventType>
+    AutoRemovable withObserver(Observer& instance,
+                              void (Observer::*method)(const EventType&))
     {
-        lastValue = boost::any_cast<T>(msg);
-        return msg;
-    }
-
-    const T& get() const
-    {
-        return lastValue;
-    }
-
-private:
-    T lastValue;
-};
-
-class Stream
-{
-public:
-    void push(boost::any msg)
-    {
-        dispatchStreams(msg);
-        dispatchSignals(msg);
-    }
-
-    template <class T>
-    Stream& transform(T transform)
-    {
-        downstreams.push_back({
-            unique_ptr<Transform>{new T{transform}},
-            unique_ptr<Stream>{new Stream{}}
+        Observer* instancePtr = &instance;
+        handlers.emplace_back(nextId(), [=](const boost::any& event)
+        {
+            if (event.type() == boost::typeindex::type_id<EventType>())
+            {
+                (instancePtr->*method)(boost::any_cast<const EventType&>(event));
+            }
         });
-        auto& last = downstreams.back();
-        return (Stream&)*last.second.get();
+        return AutoRemovable(*this, handlers.back().first);;
     }
 
-    template <class T>
-    Signal<T>& signal()
-    {
-        signals.push_back(unique_ptr<Signal<T>>{new Signal<T>{}});
-        return (Signal<T>&)*signals.back();
-    }
 private:
-    using OwnedTransform = unique_ptr<Transform>;
-    using OwnedStream = unique_ptr<Stream>;
+    const int maxEventsPerUpdate;
+    std::vector<boost::any> events;
+    std::vector<std::pair<ObserverId, Handler>> handlers;
+    ObserverId lastId = 0;
 
-    vector<pair<OwnedTransform, OwnedStream>> downstreams;
-    vector<unique_ptr<Transform>> signals;
-
-    void dispatchSignals(boost::any& msg)
+    ObserverId nextId()
     {
-        for (auto& signal: signals)
-        {
-            if (signal->applies(msg))
-            {
-                signal->apply(msg);
-            }
-        }
+        lastId += 1;
+        return lastId;
     }
 
-    void dispatchStreams(boost::any& msg)
+    void remove(ObserverId id)
     {
-        for (auto& downstream : downstreams)
-        {
-            auto& transform = downstream.first;
-            auto& stream = downstream.second;
-
-            if (transform->applies(msg))
-            {
-                auto transformed = transform->apply(msg);
-                if (!transformed.empty())
-                {
-                    stream->push(transformed);
-                }
-            }
-            else
-            {
-                stream->push(msg);
-            }
-        }
+        handlers.erase(remove_if(begin(handlers), end(handlers),
+            [&](std::pair<ObserverId, Handler>& handler) {
+                return handler.first == id;
+            }),
+            end(handlers)
+        );
     }
 };
 
-template <class In, class Out>
-class Map : public TypedTransform<In>
+using AutoRemovable = EventStream::AutoRemovable;
+using ObserverId = EventStream::ObserverId;
+
+AutoRemovable::AutoRemovable(EventStream& stream, ObserverId id)
+    : stream{stream}
+    , toRemove{id}
+    , shouldRemove{true}
+{ }
+
+AutoRemovable::AutoRemovable(AutoRemovable&& from)
+    : stream{from.stream}
+    , toRemove{from.toRemove}
+    , shouldRemove{from.shouldRemove}
+{
+    from.shouldRemove = false;
+}
+
+AutoRemovable::~AutoRemovable()
+{
+    if (shouldRemove)
+    {
+        stream.remove(toRemove);
+    }
+}
+
+EventStream::EventStream(int maxEventsPerUpdate)
+    : maxEventsPerUpdate{maxEventsPerUpdate}
+{ }
+
+void
+EventStream::push(boost::any event)
+{
+    events.push_back(event);
+}
+
+void
+EventStream::update()
+{
+    for(int count = 0; count < maxEventsPerUpdate && !events.empty(); count++)
+    {
+        for (const auto& handler : handlers)
+        {
+            handler.second(events[0]);
+        }
+        events.erase(events.begin());
+    }
+}
+
+struct Quit {};
+struct ResizeScreen { int w; int h; };
+struct MousePos { int x; int y; };
+
+class Running
 {
 public:
-    using MapFctn = function<Out(In&)>;
-
-    Map(MapFctn mapper)
-        : myMap{mapper}
+    Running(EventStream& stream)
+        : r{stream.withObserver(*this, &Running::handleQuit)}
     {}
 
-    virtual boost::any apply(boost::any& msg) override
+    void handleQuit(const Quit&)
     {
-        auto& typedMsg = boost::any_cast<In&>(msg);
-        return {myMap(typedMsg)};
+        running = false;
+    }
+
+    operator bool() const
+    {
+        return running;
+    }
+private:
+    bool running = true;
+    EventStream::AutoRemovable r;
+};
+
+void pushSDLEvents(EventStream& s)
+{
+    auto event = SDL_Event{};
+    while (SDL_PollEvent(&event))
+    {
+        if (event.type == SDL_QUIT)
+        {
+            s.push(Quit{});
+        }
+        else if (event.type == SDL_MOUSEMOTION)
+        {
+            s.push(MousePos{
+                event.motion.x,
+                event.motion.y
+            });
+        }
+        else if (event.type == SDL_WINDOWEVENT)
+        {
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED
+              ||event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                s.push(ResizeScreen{
+                    event.window.data1,
+                    event.window.data2
+                });
+            }
+        }
+    }
+    s.update();
+}
+
+class NDCMouse
+{
+public:
+    NDCMouse(EventStream& stream)
+        : mouseSub{stream.withObserver(*this, &NDCMouse::onMouseMove)}
+        , resizeSub{stream.withObserver(*this, &NDCMouse::onResize)}
+    {}
+
+    void onResize(const ResizeScreen& resize)
+    {
+        w = resize.w;
+        h = resize.h;
+    }
+
+    void onMouseMove(const MousePos& pos)
+    {
+        x = ((float)pos.x / w - 0.5f) * 2.0f;
+        y = (0.5f - (float)pos.y / h) * 2.0f;
+    }
+
+    float x_pos() const
+    {
+        return x;
+    }
+
+    float y_pos() const
+    {
+        return y;
+    }
+
+    array<float, 2> position() const
+    {
+        return {x, y};
     }
 
 private:
-    MapFctn myMap;
+    EventStream::AutoRemovable mouseSub;
+    EventStream::AutoRemovable resizeSub;
+
+    float x = 0.0f;
+    float y = 0.0f;
+    int w = 1, h = 1;
 };
-
-template <class In, class Out>
-Map<In, Out> map(function<Out(In&)> fctn)
-{
-    return Map<In, Out>{fctn};
-}
-
-template <class T>
-ostream& operator<<(ostream& out, const Signal<T>& signal)
-{
-    out << signal.get();
-}
 
 struct Vertex
 {
     array<float, 2> pos;
-
-    Vertex() = default;
-    Vertex(float x, float y) : pos{x, y} {}
 };
 
 // THOUGHTS
@@ -163,18 +236,6 @@ struct Vertex
 
 void sdlmain()
 {
-    Stream s{};
-    s.push({5});
-    s.push({string{"aoeu"}});
-
-    cout
-        << s
-        .transform(Map<int, string>([](int& i) { return "mapper: " + to_string(i); }))
-        .transform(Map<string, string>([](string& s) { return s + s; }))
-        .signal<string>()
-        << endl;
-
-    return;
     auto sdl = SDL{};
     auto window = SDLWindow::Builder{}.build();
     auto gl = window.contextBuilder()
@@ -202,24 +263,21 @@ void sdlmain()
         .bind();
     buffer.write({ Vertex {0.2, 0.3}
                 ,  Vertex {-0.1, 0.2}
-                ,  Vertex {-0.5, -0.5}
+                ,  Vertex {0.0, -0.5}
                 });
 
-    auto shouldExit = false;
-    auto event = SDL_Event{};
-    while (!shouldExit)
-    {
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_QUIT)
-            {
-                shouldExit = true;
-            }
-        }
+    auto events = EventStream{};
+    auto running = Running{events};
+    auto mouse = NDCMouse{events};
 
-        // update the offset vector based on time! wooooo, spooky
-        auto time = (SDL_GetTicks()/1000.0f);
-        auto offset = array<float, 2>{cosf(time), sinf(time)};
+    // TODO: move this setup into window constructor
+    int w, h;
+    SDL_GetWindowSize(window.raw(), &w, &h);
+    events.push(ResizeScreen{w, h});
+
+    while (running)
+    {
+        pushSDLEvents(events);
 
         auto frame = window.draw();
         glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -228,7 +286,8 @@ void sdlmain()
         vao.bind();
         program.use();
         // Set the uniform value
-        program.uniform(offsetLocation, offset);
+        auto pos = mouse.position();
+        program.uniform(offsetLocation, pos);
 
         glDrawArrays(GL_TRIANGLES, 0, buffer.size());
 
