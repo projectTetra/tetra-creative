@@ -3,6 +3,7 @@
 
 #include <sdl/SDL.hpp>
 #include <sdl/GLContext.hpp>
+#include <tetra/EventStream.hpp>
 
 #include <SDL.h>
 
@@ -25,7 +26,7 @@ namespace tetra
             /**
              * Create a new SDLWindow builder.
              */
-            Builder();
+            Builder(EventStream& eventStream);
 
             /**
              * Set the window's initial x position -- defaults to SDL_WINDOWPOS_UNDEFINED.
@@ -64,6 +65,7 @@ namespace tetra
             int _w;
             int _h;
             std::string _title;
+            EventStream& eventStream;
         };
 
         /**

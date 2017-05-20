@@ -29,8 +29,9 @@ struct Vertex
 void sdlmain()
 {
     // Create SDL, the Window, and the OpenGL Context
-    auto sdl = SDL{};
-    auto window = SDLWindow::Builder{}.build();
+    auto eventStream = EventStream{};
+    auto sdl = SDL{eventStream};
+    auto window = SDLWindow::Builder{eventStream}.build();
     auto gl = window.contextBuilder()
         .majorVersion(3)
         .minorVersion(3)
@@ -65,18 +66,11 @@ void sdlmain()
     // Main program loop
     // Simply run until getting a Quit event (from clicking the 'x' box on your WM
     // or Ctrl-c in the terminal)
-    auto shouldExit = false;
     auto event = SDL_Event{};
-    while (!shouldExit)
+    while (sdl.running())
     {
-        // Handle events each frame
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_QUIT)
-            {
-                shouldExit = true;
-            }
-        }
+        sdl.pushEvents();
+        eventStream.dispatch();
 
         // Start the frame.
         // When the frame object dies it will automatically flip the back buffer .

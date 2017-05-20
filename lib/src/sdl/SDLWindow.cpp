@@ -1,6 +1,7 @@
 #include <sdl/SDLWindow.hpp>
 #include <sdl/SDLException.hpp>
 #include <sdl/SDL.hpp>
+#include <sdl/SDLEvents.hpp>
 
 #include <GL/glew.h>
 #include <SDL.h>
@@ -10,12 +11,13 @@ using namespace tetra;
 using Frame = SDLWindow::Frame;
 using Builder = SDLWindow::Builder;
 
-Builder::Builder()
+Builder::Builder(EventStream& eventStream)
     : _x{SDL_WINDOWPOS_UNDEFINED}
     , _y{SDL_WINDOWPOS_UNDEFINED}
     , _w{800}
     , _h{600}
     , _title{"tetra-creative"}
+    , eventStream{eventStream}
 { }
 
 Builder&
@@ -63,7 +65,13 @@ Builder::build()
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
     );
 
-    return SDLWindow{windowHandle};
+    auto window = SDLWindow{windowHandle};
+
+    int w, h;
+    SDL_GL_GetDrawableSize(window.raw(), &w, &h);
+    eventStream.push(SDLWindowSize{w, h});
+
+    return window;
 }
 
 Frame::Frame(SDLWindow& window)

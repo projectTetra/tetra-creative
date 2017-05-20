@@ -4,47 +4,13 @@
 #include <gl/VAO.hpp>
 #include <boost/any.hpp>
 #include <tetra/EventStream.hpp>
+#include <sdl/SDLEvents.hpp>
 
 #include <array>
 #include <exception>
 
 using namespace std;
 using namespace tetra;
-
-struct SDLQuit {};
-
-class Running
-{
-public:
-    Running(EventStream& stream)
-        : onQuit{stream.addListener(*this, &Running::handleQuit)}
-    {}
-
-    void handleQuit(const SDLQuit&)
-    {
-        running = false;
-    }
-
-    operator bool() const
-    {
-        return running;
-    }
-private:
-    EventStream::AutoRemoveListener onQuit;
-    bool running = true;
-};
-
-void processSDLEvents(EventStream& stream)
-{
-    auto event = SDL_Event{};
-    while (SDL_PollEvent(&event))
-    {
-        if (event.type == SDL_QUIT)
-        {
-            stream.push(SDLQuit{});
-        }
-    }
-}
 
 struct Vertex
 {
@@ -53,8 +19,9 @@ struct Vertex
 
 void sdlmain()
 {
-    auto sdl = SDL{};
-    auto window = SDLWindow::Builder{}.build();
+    auto eventStream = EventStream{};
+    auto sdl = SDL{eventStream};
+    auto window = SDLWindow::Builder{eventStream}.build();
     auto gl = window.contextBuilder()
         .majorVersion(3)
         .minorVersion(3)
@@ -83,13 +50,10 @@ void sdlmain()
                 ,  Vertex {-0.5, -0.5}
                 });
 
-    auto events = EventStream{};
-    auto running = Running{events};
-
-    while (running)
+    while (sdl.running())
     {
-        processSDLEvents(events);
-        events.dispatch();
+        sdl.pushEvents();
+        eventStream.dispatch();
 
         // update the offset vector based on time! wooooo, spooky
         auto time = (SDL_GetTicks()/1000.0f);
