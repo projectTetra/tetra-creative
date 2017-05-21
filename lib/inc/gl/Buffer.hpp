@@ -93,6 +93,30 @@ namespace tetra
         DynamicCopy = GL_DYNAMIC_COPY,
     };
 
+    namespace hidden
+    {
+        template <class T>
+        GLenum elementType()
+        {
+            static_assert(
+                std::is_same<GLubyte, T>::value ||
+                std::is_same<GLushort, T>::value ||
+                std::is_same<GLuint, T>::value,
+                "DrawElements only works for buffers which hold "
+                "GLubyte (unsigned char), GLushort (unsigned short), or "
+                "GLuint (unsigned int");
+        }
+
+        template <>
+        GLenum elementType<GLubyte>();
+
+        template <>
+        GLenum elementType<GLushort>();
+
+        template <>
+        GLenum elementType<GLuint>();
+    }
+
     /**
      * This class represents an OpenGL Buffer.
      */
@@ -217,6 +241,15 @@ namespace tetra
         void draw(Primitive primitive)
         {
             glDrawArrays(primitive, 0, size());
+            THROW_ON_GL_ERROR();
+        }
+
+        /**
+         * Draw's the contents of the vao using the element buffer.
+         */
+        void drawElements(Primitive primitive)
+        {
+            glDrawElements(GL_LINES, size(), hidden::elementType<Data>(), 0);
             THROW_ON_GL_ERROR();
         }
 

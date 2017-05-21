@@ -50,7 +50,11 @@ void sdlmain()
     buffer.write({ Vertex {0.2, 0.3}
                 ,  Vertex {-0.1, 0.2}
                 ,  Vertex {-0.5, -0.5}
+                ,  Vertex {0.0, 0.8}
                 });
+
+    auto elemBuffer = Buffer<unsigned short>{BindTarget::ElementArray};
+    elemBuffer.write({0, 1, 2, 3});
 
     auto ortho = AdaptiveOrtho{eventStream};
     while (sdl.running())
@@ -67,7 +71,9 @@ void sdlmain()
 
         program.uniform(projLocation, ortho.value());
 
-        buffer.draw(Primitive::Triangles);
+        //buffer.draw(Primitive::Lines);
+        //glDrawElements(Primitive::Lines, elemBuffer.size(), GL_UNSIGNED_SHORT, 0);
+        elemBuffer.drawElements(Primitive::Lines);
     }
 }
 
