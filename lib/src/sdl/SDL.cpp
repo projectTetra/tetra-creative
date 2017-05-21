@@ -60,6 +60,15 @@ SDL::pushEvents()
             eventStream.push(SDLQuit{});
             quitReceived = true;
         }
+        else if (event.type == SDL_MOUSEMOTION)
+        {
+            eventStream.push(SDLMousePosition{
+                event.motion.x,
+                event.motion.y,
+                event.motion.xrel,
+                event.motion.yrel
+            });
+        }
         else if (event.type == SDL_WINDOWEVENT)
         {
             pushWindowEvent(eventStream, event);

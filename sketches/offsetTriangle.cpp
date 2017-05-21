@@ -5,6 +5,7 @@
 #include <boost/any.hpp>
 #include <tetra/EventStream.hpp>
 #include <sdl/SDLEvents.hpp>
+#include <tetra/NDCMouse.hpp>
 
 #include <array>
 #include <exception>
@@ -50,14 +51,11 @@ void sdlmain()
                 ,  Vertex {-0.5, -0.5}
                 });
 
+    auto mouse = NDCMouse{eventStream};
     while (sdl.running())
     {
         sdl.pushEvents();
         eventStream.dispatch();
-
-        // update the offset vector based on time! wooooo, spooky
-        auto time = (SDL_GetTicks()/1000.0f);
-        auto offset = array<float, 2>{cosf(time), sinf(time)};
 
         auto frame = window.draw();
         glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -66,7 +64,7 @@ void sdlmain()
         vao.bind();
         program.use();
         // Set the uniform value
-        program.uniform(offsetLocation, offset);
+        program.uniform(offsetLocation, mouse.position());
 
         glDrawArrays(GL_TRIANGLES, 0, buffer.size());
 
