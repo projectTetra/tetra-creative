@@ -10,6 +10,25 @@
 
 namespace tetra
 {
+    enum Primitive
+    {
+        Points = GL_POINTS,
+
+        Lines = GL_LINES,
+        LineLoop = GL_LINE_LOOP,
+        LinesAdjacency = GL_LINES_ADJACENCY,
+        LineStrip = GL_LINE_STRIP,
+        LineStripAdjacency = GL_LINE_STRIP_ADJACENCY,
+
+        Triangles = GL_TRIANGLES,
+        TrianglesAdjacency = GL_TRIANGLES_ADJACENCY,
+        TriangleStrip = GL_TRIANGLE_STRIP,
+        TriangleStripAdjacency = GL_TRIANGLE_STRIP_ADJACENCY,
+        TriangleFan = GL_TRIANGLE_FAN,
+
+        Patches = GL_PATCHES,
+    };
+
     enum BindTarget
     {
         /** Vertex Attributes */
@@ -190,6 +209,15 @@ namespace tetra
         int size()
         {
             return _size;
+        }
+
+        /**
+         * Draw's the contents of the buffer using the provided primitive.
+         */
+        void draw(Primitive primitive)
+        {
+            glDrawArrays(primitive, 0, size());
+            THROW_ON_GL_ERROR();
         }
 
     private:

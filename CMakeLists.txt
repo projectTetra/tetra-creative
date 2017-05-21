@@ -20,6 +20,7 @@ include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${SDL2_INCLUDE_DIR})
 include_directories(${Boost_Include_Dirs})
 include_directories(lib/inc)
+include_directories(dependencies/glm)
 
 add_subdirectory (lib)
 
@@ -35,3 +36,8 @@ target_link_libraries(offsetTriangle ${OPENGL_LIBRARIES})
 target_link_libraries(offsetTriangle ${SDL2_LIBRARY})
 target_link_libraries(offsetTriangle ${GLEW_LIBRARY})
 
+add_executable(lissajous ./sketches/lissajous.cpp)
+target_link_libraries(lissajous tcCore)
+target_link_libraries(lissajous ${OPENGL_LIBRARIES})
+target_link_libraries(lissajous ${SDL2_LIBRARY})
+target_link_libraries(lissajous ${GLEW_LIBRARY})
