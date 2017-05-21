@@ -4,8 +4,8 @@
 #include <gl/VAO.hpp>
 #include <boost/any.hpp>
 #include <tetra/EventStream.hpp>
+#include <tetra/AdaptiveOrtho.hpp>
 #include <sdl/SDLEvents.hpp>
-#include <tetra/NDCMouse.hpp>
 
 #include <array>
 #include <exception>
@@ -33,7 +33,7 @@ void sdlmain()
     auto vertex = Shader{ShaderType::VERTEX};
     auto fragment = Shader{ShaderType::FRAGMENT};
     fragment.compile(loadShaderSrc("identity.frag"));
-    vertex.compile(loadShaderSrc("identity.vert"));
+    vertex.compile(loadShaderSrc("lissajous.vert"));
 
     auto program = ProgramLinker{}
         .vertexAttributes({"vertex"})
@@ -41,8 +41,7 @@ void sdlmain()
         .attach(fragment)
         .link();
 
-    // lookup offset location
-    auto offsetLocation = program.uniformLocation("offset");
+    auto projLocation = program.uniformLocation("projection");
 
     auto vao = Vao{};
     auto buffer = AttribBinder<Vertex>{vao}
@@ -53,6 +52,7 @@ void sdlmain()
                 ,  Vertex {-0.5, -0.5}
                 });
 
+    auto ortho = AdaptiveOrtho{eventStream};
     while (sdl.running())
     {
         sdl.pushEvents();
@@ -64,6 +64,8 @@ void sdlmain()
 
         vao.bind();
         program.use();
+
+        program.uniform(projLocation, ortho.value());
 
         buffer.draw(Primitive::Triangles);
     }

@@ -1,6 +1,8 @@
 #include <gl/Program.hpp>
 #include <gl/GLException.hpp>
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <algorithm>
 #include <iostream>
 
@@ -40,6 +42,12 @@ void
 tetra::uniforms::uniformValue(GLint location, const array<float, 4>& vec)
 {
     glUniform4fv(location, 1, vec.data());
+}
+
+void
+tetra::uniforms::uniformValue(GLint location, const glm::mat4& matrix)
+{
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
 }
 
 Program::Program()

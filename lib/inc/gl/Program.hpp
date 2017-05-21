@@ -4,6 +4,7 @@
 #include <gl/Shader.hpp>
 
 #include <GL/glew.h>
+#include <glm/mat4x4.hpp>
 
 #include <array>
 #include <vector>
@@ -37,6 +38,11 @@ namespace tetra
          * Set the value of a 4-element float vector.
          */
         void uniformValue(GLint location, const std::array<float, 4>& vec);
+
+        /**
+         * Set the value of a 4x4 glm matrix.
+         */
+        void uniformValue(GLint location, const glm::mat4& mat);
     }
 
     /**
