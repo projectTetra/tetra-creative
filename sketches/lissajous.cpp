@@ -18,6 +18,95 @@ struct Vertex
     array<float, 2> pos;
 };
 
+vector<unsigned short> permute(int n)
+{
+    auto count = (n*(n-1)); // n-1'th triangle number times 2
+    auto indices = vector<unsigned short>{};
+    indices.reserve(count);
+
+    for (int i = 0; i < n-1; i++)
+    {
+        for (int j = i+1; j < n; j++)
+        {
+            indices.push_back(i);
+            indices.push_back(j);
+        }
+    }
+    return indices;
+}
+
+Program buildCobwebProgram()
+{
+    auto vertex = Shader{ShaderType::VERTEX};
+    auto fragment = Shader{ShaderType::FRAGMENT};
+    auto geometry = Shader{ShaderType::GEOMETRY};
+    fragment.compile(loadShaderSrc("lissajous.frag"));
+    vertex.compile(loadShaderSrc("lissajous.vert"));
+    geometry.compile(loadShaderSrc("lissajous.geom"));
+
+    auto program = ProgramLinker{}
+        .vertexAttributes({"vertex"})
+        .attach(vertex)
+        .attach(fragment)
+        .attach(geometry)
+        .link();
+
+    auto projLocation = program.uniformLocation("projection");
+    return program;
+}
+
+class CobwebPipeline
+{
+public:
+    CobwebPipeline(EventStream& eventStream);
+    CobwebPipeline(const CobwebPipeline&) = delete;
+    CobwebPipeline(CobwebPipeline&& from) = default;
+
+    void render();
+
+    void setVertices(const std::vector<Vertex>& vertices);
+private:
+    AdaptiveOrtho adaptiveOrtho;
+    Program program;
+    Vao vao;
+    Buffer<Vertex> vertexBuffer;
+    Buffer<unsigned short> indexBuffer;
+    GLint projLocation;
+};
+
+CobwebPipeline::CobwebPipeline(EventStream& eventStream)
+    : program{buildCobwebProgram()}
+    , vao{Vao{}}
+    , vertexBuffer{AttribBinder<Vertex>{vao}.attrib(&Vertex::pos).bind()}
+    , indexBuffer{BindTarget::ElementArray}
+    , adaptiveOrtho{eventStream}
+{
+    projLocation = program.uniformLocation("projection");
+}
+
+void
+CobwebPipeline::setVertices(const vector<Vertex>& vertices)
+{
+    auto vbSize = vertexBuffer.size();
+    vertexBuffer.write(vertices);
+
+    // Only redo this if the number of vertices changes because the
+    // permutation scales like N^2 (technically N*(N-1))
+    if (vbSize != vertexBuffer.size())
+    {
+        indexBuffer.write(permute(vertexBuffer.size()));
+    }
+}
+
+void
+CobwebPipeline::render()
+{
+    vao.bind();
+    program.use();
+    program.uniform(projLocation, adaptiveOrtho.value());
+    indexBuffer.drawElements(Primitive::Lines);
+}
+
 void sdlmain()
 {
     auto eventStream = EventStream{};
@@ -30,50 +119,43 @@ void sdlmain()
         .minorVersion(3)
         .build();
 
-    auto vertex = Shader{ShaderType::VERTEX};
-    auto fragment = Shader{ShaderType::FRAGMENT};
-    fragment.compile(loadShaderSrc("identity.frag"));
-    vertex.compile(loadShaderSrc("lissajous.vert"));
+    auto max = 2.0f*3.1415f;
+    auto count = 500;
+    auto vertices = vector<Vertex>{};
+    auto cobwebPipeline = CobwebPipeline{eventStream};
 
-    auto program = ProgramLinker{}
-        .vertexAttributes({"vertex"})
-        .attach(vertex)
-        .attach(fragment)
-        .link();
+    auto computeVertices = [&]() {
+        auto time = SDL_GetTicks();
+        auto ft = (float)time/1000.0f;
 
-    auto projLocation = program.uniformLocation("projection");
+        vertices.clear();
+        for (int i = 0; i < count; i++)
+        {
+            auto r = (float)i/count;
+            auto angle = r*max;
 
-    auto vao = Vao{};
-    auto buffer = AttribBinder<Vertex>{vao}
-        .attrib(&Vertex::pos)
-        .bind();
-    buffer.write({ Vertex {0.2, 0.3}
-                ,  Vertex {-0.1, 0.2}
-                ,  Vertex {-0.5, -0.5}
-                ,  Vertex {0.0, 0.8}
-                });
+            vertices.push_back({ 0.9f*sinf(1.5f*angle+ft)*cosf(1.0f*angle)
+                               , 0.9f*cosf(1.0*angle+ft)*cosf(1.0f*angle)
+                               });
+        }
+    };
 
-    auto elemBuffer = Buffer<unsigned short>{BindTarget::ElementArray};
-    elemBuffer.write({0, 1, 2, 3});
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
 
-    auto ortho = AdaptiveOrtho{eventStream};
     while (sdl.running())
     {
         sdl.pushEvents();
         eventStream.dispatch();
 
+        computeVertices();
+        cobwebPipeline.setVertices(vertices);
+
         auto frame = window.draw();
         glClearColor(0.0, 0.0, 0.0, 0.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        vao.bind();
-        program.use();
-
-        program.uniform(projLocation, ortho.value());
-
-        //buffer.draw(Primitive::Lines);
-        //glDrawElements(Primitive::Lines, elemBuffer.size(), GL_UNSIGNED_SHORT, 0);
-        elemBuffer.drawElements(Primitive::Lines);
+        cobwebPipeline.render();
     }
 }
 
