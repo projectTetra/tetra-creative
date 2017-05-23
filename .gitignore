@@ -4,6 +4,7 @@ build/
 *.a
 tetra-creative
 
+actionlist
 firstTriangle
 offsetTriangle
 lissajous

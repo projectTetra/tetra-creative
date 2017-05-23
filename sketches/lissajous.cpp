@@ -112,7 +112,7 @@ void sdlmain()
     auto eventStream = EventStream{};
     auto sdl = SDL{eventStream};
     auto window = SDLWindow::Builder{eventStream}
-        .width(2000).height(1500)
+        .width(1000).height(750)
         .build();
     auto gl = window.contextBuilder()
         .majorVersion(3)
@@ -120,7 +120,7 @@ void sdlmain()
         .build();
 
     auto max = 2.0f*3.1415f;
-    auto count = 500;
+    auto count = 75;
     auto vertices = vector<Vertex>{};
     auto cobwebPipeline = CobwebPipeline{eventStream};
 
