@@ -6,16 +6,16 @@
 
 using namespace std;
 
-class ProcessEngine;
+class ProcessList;
 
 class Process
 {
 public:
-    ProcessEngine& engine;
+    ProcessList* engine;
     bool finished = false;
     std::unique_ptr<Process> next = nullptr;
 
-    Process(ProcessEngine& engine);
+    Process() = default;
     Process(const Process&) = delete;
     Process(Process&& from) = default;
 
@@ -30,7 +30,7 @@ public:
     }
 };
 
-class ProcessEngine
+class ProcessList
 {
 public:
     Process& add(std::unique_ptr<Process>&& process);
@@ -51,9 +51,8 @@ private:
 class EchoProc : public Process
 {
 public:
-    EchoProc(ProcessEngine& engine, string msg)
-        : Process(engine)
-        , msg{msg}
+    EchoProc(string msg)
+        : msg{msg}
     { }
 
     virtual void run() override
@@ -67,16 +66,16 @@ private:
 
 int main()
 {
-    ProcessEngine engine{};
+    ProcessList engine{};
 
     engine
-        .add<EchoProc>(engine, "hello")
-        .andThen<EchoProc>(engine, "world")
-        .andThen<EchoProc>(engine, "and another thing!");
+        .add<EchoProc>("hello")
+        .andThen<EchoProc>("world")
+        .andThen<EchoProc>("and another thing!");
 
     engine
-        .add<EchoProc>(engine, "number")
-        .andThen<EchoProc>(engine, "two");
+        .add<EchoProc>("number")
+        .andThen<EchoProc>("two");
         //.andThen<EchoProc>(engine, "turbo");
 
 
@@ -89,7 +88,7 @@ int main()
 }
 
 void
-ProcessEngine::run()
+ProcessList::run()
 {
     for (const auto& process : processes)
     {
@@ -113,27 +112,25 @@ ProcessEngine::run()
     processes.erase(done, end(processes));
 
     // push the next processes
-    processes.insert(end(processes),
-                     make_move_iterator(begin(nextProcesses)),
-                     make_move_iterator(end(nextProcesses)));
+    for (auto& proc : nextProcesses)
+    {
+        this->add(move(proc));
+    }
 }
 
 bool
-ProcessEngine::running() const
+ProcessList::running() const
 {
     return !processes.empty();
 }
 
 Process&
-ProcessEngine::add(unique_ptr<Process>&& process)
+ProcessList::add(unique_ptr<Process>&& process)
 {
     processes.emplace_back(move(process));
+    processes.back()->engine = this;
     return *processes.back();
 }
-
-Process::Process(ProcessEngine& engine)
-    : engine{engine}
-{ }
 
 Process&
 Process::andThen(unique_ptr<Process>&& next)
