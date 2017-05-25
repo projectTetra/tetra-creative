@@ -6,136 +6,179 @@
 
 using namespace std;
 
-class ProcessList;
+class Action;
+class ActionList;
 
-class Process
+class Action
 {
 public:
-    ProcessList* engine;
-    bool finished = false;
-    std::unique_ptr<Process> next = nullptr;
+    bool complete = false;
+    bool blocking = false;
+    ActionList* parentList;
 
-    Process() = default;
-    Process(const Process&) = delete;
-    Process(Process&& from) = default;
-
-    virtual void run() = 0;
-
-    Process& andThen(std::unique_ptr<Process>&& next);
-
-    template <class T, class... Args>
-    T& andThen(Args&&... args)
-    {
-        return (T&)andThen(std::unique_ptr<Process>{new T{std::forward<Args>(args)...}});
-    }
+    virtual void run(float dt) = 0;
+    virtual void onStart() = 0;
+    virtual void onEnd() = 0;
 };
 
-class ProcessList
+class DebugAction : public Action
 {
 public:
-    Process& add(std::unique_ptr<Process>&& process);
+    DebugAction(string msg, int runs);
+    virtual void run(float dt) override;
+    virtual void onStart() override;
+    virtual void onEnd() override;
 
-    template <class T, class... Args>
-    T& add(Args&&... args)
-    {
-        return (T&)add(std::unique_ptr<Process>{new T{std::forward<Args>(args)...}});
-    }
-
-    bool running() const;
-
-    void run();
-private:
-    std::vector<std::unique_ptr<Process>> processes;
-};
-
-class EchoProc : public Process
-{
-public:
-    EchoProc(string msg)
-        : msg{msg}
-    { }
-
-    virtual void run() override
-    {
-        cout << msg << endl;
-        this->finished = true;
-    }
 private:
     string msg;
+    int runs;
+};
+
+unique_ptr<DebugAction> debug(const string& str, int runs = 1)
+{
+    return unique_ptr<DebugAction>{new DebugAction{str, runs}};
+}
+
+class ActionList
+{
+public:
+    using OwnedAction = std::unique_ptr<Action>;
+
+    Action* insertBefore(const Action* here, OwnedAction&& action);
+    Action* insertAfter(const Action* here, OwnedAction&& action);
+    Action* pushFront(OwnedAction&& action);
+
+    void run(float dt);
+private:
+    using ActionCollection = std::vector<OwnedAction>;
+    ActionCollection actions;
+
+    /**
+     * Insert the action at a location, set the parentList, and call onStart.
+     */
+    Action* insertAt(ActionCollection::iterator location, OwnedAction&& action);
 };
 
 int main()
 {
-    ProcessList engine{};
+    auto mylist = ActionList{};
 
-    engine
-        .add<EchoProc>("hello")
-        .andThen<EchoProc>("world")
-        .andThen<EchoProc>("and another thing!");
+    auto inserted = mylist.insertBefore(nullptr, debug("aoeu"));
+    auto first = mylist.insertBefore(inserted, debug("first"));
+    mylist.insertAfter(first, debug("second", 3));
+    mylist.insertAfter(nullptr, debug("run twice", 2));
 
-    engine
-        .add<EchoProc>("number")
-        .andThen<EchoProc>("two");
-        //.andThen<EchoProc>(engine, "turbo");
+    cout << "start cycle{ " << endl;
+    mylist.run(0.0f);
+    cout << "}end" << endl;
 
+    cout << "start cycle{ " << endl;
+    mylist.run(0.2f);
+    cout << "}end" << endl;
 
-    while (engine.running())
-    {
-        engine.run();
-    }
+    cout << "start cycle{ " << endl;
+    mylist.run(0.4f);
+    cout << "}end" << endl;
+
+    cout << "start cycle{ " << endl;
+    mylist.run(0.6f);
+    cout << "}end" << endl;
 
     return 0;
 }
 
+DebugAction::DebugAction(string msg, int runs) : msg{msg}, runs{runs} {}
+
 void
-ProcessList::run()
+DebugAction::run(float dt)
 {
-    for (const auto& process : processes)
+    cout << "debug action run: " << this->msg << " -- " << dt << endl;
+    this->runs -= 1;
+
+    if (runs <= 0)
     {
-        process->run();
+        this->complete = true;
     }
+}
 
-    // gather completed processes
-    auto done = remove_if(begin(processes), end(processes), [](const auto& proc) { return proc->finished; });
+void
+DebugAction::onStart()
+{
+    cout << "debug action start " << msg << endl;
+}
 
-    // grab all of the processes with next ptrs
-    auto nextProcesses = vector<unique_ptr<Process>>{};
-    for_each(done, end(processes), [&nextProcesses](const unique_ptr<Process>& proc)
+void
+DebugAction::onEnd()
+{
+    cout << "debug action end " << msg << endl;
+}
+
+Action*
+ActionList::insertBefore(const Action* here, OwnedAction&& action)
+{
+    auto insertIter = find_if(begin(this->actions), end(this->actions),
+                              [&here](const OwnedAction& action)
+                              {
+                                  return action.get() == here;
+                              });
+    return this->insertAt(insertIter, move(action));
+}
+
+Action*
+ActionList::insertAfter(const Action* here, OwnedAction&& action)
+{
+    auto insertIter = find_if(begin(this->actions), end(this->actions),
+                              [&here](const OwnedAction& action)
+                              {
+                                  return action.get() == here;
+                              });
+    if (insertIter != end(this->actions))
     {
-        if(proc->next)
+        insertIter++;
+    }
+    return this->insertAt(insertIter, move(action));
+}
+
+Action*
+ActionList::pushFront(OwnedAction&& action)
+{
+    return insertAt(begin(this->actions), move(action));
+}
+
+Action*
+ActionList::insertAt(ActionCollection::iterator location, OwnedAction&& action)
+{
+    auto insertedIter = this->actions.insert(location, move(action));
+    auto actionPtr = insertedIter->get();
+    actionPtr->parentList = this;
+    actionPtr->onStart();
+    return actionPtr;
+}
+
+void
+ActionList::run(float dt)
+{
+    for (const auto& action : actions)
+    {
+        action->run(dt);
+        if (action->blocking)
         {
-            nextProcesses.emplace_back(proc->next.release());
+            break;
         }
-    });
-
-    // remove completed processes
-    processes.erase(done, end(processes));
-
-    // push the next processes
-    for (auto& proc : nextProcesses)
-    {
-        this->add(move(proc));
     }
-}
 
-bool
-ProcessList::running() const
-{
-    return !processes.empty();
-}
-
-Process&
-ProcessList::add(unique_ptr<Process>&& process)
-{
-    processes.emplace_back(move(process));
-    processes.back()->engine = this;
-    return *processes.back();
-}
-
-Process&
-Process::andThen(unique_ptr<Process>&& next)
-{
-    this->next = move(next);
-    return *(this->next);
+    // remove completed
+    auto startOfCompleted = partition(begin(this->actions), end(this->actions),
+                                      [](const OwnedAction& action)
+                                      {
+                                          return !action->complete;
+                                      });
+    // run onEnd for completed actions
+    for_each(startOfCompleted, end(this->actions), [](const OwnedAction& action)
+    {
+        action->onEnd();
+    });
+    // erase the ended actions
+    this->actions.erase(startOfCompleted, end(this->actions));
 }
 
