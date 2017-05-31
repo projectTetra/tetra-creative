@@ -155,16 +155,12 @@ class MyTurboBehavior : public Behavior
 public:
     virtual void onStart() override
     {
-        cout << " -> starting my turbo behavior" << "\n"
-             << " -> So pretend to gather some resources or something"
-             << endl;
+        cout << " -> starting my turbo behavior" << endl;
     }
 
     virtual void onEnd() override
     {
-        cout << " -> ending my turbo behavior" << "\n"
-             << " -> so pretend to clean things up or something"
-             << endl;
+        cout << " -> ending my turbo behavior" << endl;
     }
 
     virtual void run(double dt) override
@@ -173,7 +169,7 @@ public:
 
         this->insertInFrontOfMe(Delay::forSeconds(1.0));
         this->insertInFrontOfMe(
-            Echo::message("finished delay for count " + to_string(this->count))
+            Echo::message("finished wait for count " + to_string(this->count))
         );
         this->count -= 1;
 
