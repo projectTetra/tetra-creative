@@ -1,154 +1,238 @@
-#include <iostream>
-#include <memory>
-#include <vector>
-#include <thread>
+#include <tetra/TicTocClock.hpp>
+
 #include <algorithm>
+#include <iostream>
+#include <list>
 
 using namespace std;
+using namespace tetra;
 
-class Action;
-class ActionList;
+class Behavior;
+class BehaviorList;
+using OwnedBehavior = std::unique_ptr<Behavior>;
 
-class Action
+/**
+ * A behavior is a chunk of code which executes in a BehaviorList.
+ * Behaviors are provided a pointer to their parent list before their
+ * onStart method is first called.
+ */
+class Behavior
 {
 public:
     bool complete = false;
     bool blocking = false;
-    ActionList* parentList;
+    BehaviorList* parentList;
 
-    virtual void run(float dt) = 0;
-    virtual void onStart() = 0;
-    virtual void onEnd() = 0;
+    virtual void run(double dt) = 0;
+    virtual void onStart();
+    virtual void onEnd();
+
+    Behavior* insertInFrontOfMe(OwnedBehavior&& ownedBehavior);
 };
 
-class DebugAction : public Action
+void Behavior::onStart() {}
+void Behavior::onEnd() {}
+
+/**
+ * The BehaviorList is a collection of behaviors which are executed each time
+ * run() is invoked.
+ */
+class BehaviorList
 {
 public:
-    DebugAction(string msg, int runs);
-    virtual void run(float dt) override;
-    virtual void onStart() override;
-    virtual void onEnd() override;
+    /**
+     * Insert the owned behavior before the here pointer.
+     * If the 'here' pointer cannot be found then the behavior is inserted at the
+     * end of the list.
+     */
+    Behavior* insertBefore(const Behavior* here, OwnedBehavior&& action);
 
+    /**
+     * Insert the owned behavior after the 'here' pointer.
+     * If the 'here' pointer cannot be found in the behavior list then the provided
+     * behavior is inserted at the end of the list.
+     */
+    Behavior* insertAfter(const Behavior* here, OwnedBehavior&& action);
+
+    /**
+     * Push the provided behavior onto the front of the behavior list.
+     */
+    Behavior* pushFront(OwnedBehavior&& action);
+
+    /**
+     * Execute the behaviors in the behavior list, stopping at the end of the list
+     * or after the first blocking Behavior executes.
+     */
+    void run(double dt);
+
+    /**
+     * Returns true as long as there are any behaviors which have not completed.
+     */
+    bool running() const;
 private:
-    string msg;
-    int runs;
-};
-
-unique_ptr<DebugAction> debug(const string& str, int runs = 1)
-{
-    return unique_ptr<DebugAction>{new DebugAction{str, runs}};
-}
-
-class ActionList
-{
-public:
-    using OwnedAction = std::unique_ptr<Action>;
-
-    Action* insertBefore(const Action* here, OwnedAction&& action);
-    Action* insertAfter(const Action* here, OwnedAction&& action);
-    Action* pushFront(OwnedAction&& action);
-
-    void run(float dt);
-private:
-    using ActionCollection = std::vector<OwnedAction>;
-    ActionCollection actions;
+    using BehaviorCollection = std::list<OwnedBehavior>;
+    BehaviorCollection behaviors;
 
     /**
      * Insert the action at a location, set the parentList, and call onStart.
      */
-    Action* insertAt(ActionCollection::iterator location, OwnedAction&& action);
+    Behavior* insertAt(BehaviorCollection::iterator location, OwnedBehavior&& action);
 };
 
-int main()
+Behavior*
+Behavior::insertInFrontOfMe(OwnedBehavior&& ownedBehavior)
 {
-    auto mylist = ActionList{};
-
-    auto inserted = mylist.insertBefore(nullptr, debug("aoeu"));
-    auto first = mylist.insertBefore(inserted, debug("first"));
-    mylist.insertAfter(first, debug("second", 3));
-    mylist.insertAfter(nullptr, debug("run twice", 2));
-
-    cout << "start cycle{ " << endl;
-    mylist.run(0.0f);
-    cout << "}end" << endl;
-
-    cout << "start cycle{ " << endl;
-    mylist.run(0.2f);
-    cout << "}end" << endl;
-
-    cout << "start cycle{ " << endl;
-    mylist.run(0.4f);
-    cout << "}end" << endl;
-
-    cout << "start cycle{ " << endl;
-    mylist.run(0.6f);
-    cout << "}end" << endl;
-
-    return 0;
+    return this->parentList->insertBefore(this, move(ownedBehavior));
 }
 
-DebugAction::DebugAction(string msg, int runs) : msg{msg}, runs{runs} {}
+class Delay : public Behavior
+{
+public:
+    Delay(double duration);
+
+    virtual void run(double dt) override;
+
+    static unique_ptr<Delay> forSeconds(double duration);
+private:
+    const double duration;
+    double elapsed;
+};
+
+Delay::Delay(double duration)
+    : duration{duration}
+    , elapsed{0.0f}
+{
+    this->blocking = true;
+}
 
 void
-DebugAction::run(float dt)
+Delay::run(double dt)
 {
-    cout << "debug action run: " << this->msg << " -- " << dt << endl;
-    this->runs -= 1;
-
-    if (runs <= 0)
+    elapsed += dt;
+    if (elapsed >= duration)
     {
         this->complete = true;
     }
 }
 
-void
-DebugAction::onStart()
+unique_ptr<Delay>
+Delay::forSeconds(double duration)
 {
-    cout << "debug action start " << msg << endl;
+    return unique_ptr<Delay>{new Delay{duration}};
 }
 
-void
-DebugAction::onEnd()
+class Echo : public Behavior
 {
-    cout << "debug action end " << msg << endl;
+public:
+    Echo(const std::string& msg);
+
+    virtual void run(double dt) override;
+
+    template <class T>
+    static unique_ptr<Echo> message(const T& msg)
+    {
+        using std::to_string;
+        return unique_ptr<Echo>{new Echo{to_string(msg)}};
+    }
+
+    static unique_ptr<Echo> message(const char* msg);
+private:
+    const std::string msg;
+};
+
+Echo::Echo(const std::string& msg)
+    : msg{msg}
+{ }
+
+void
+Echo::run(double dt)
+{
+    cout << msg << endl;
+    this->complete = true;
 }
 
-Action*
-ActionList::insertBefore(const Action* here, OwnedAction&& action)
+unique_ptr<Echo>
+Echo::message(const char* msg)
 {
-    auto insertIter = find_if(begin(this->actions), end(this->actions),
-                              [&here](const OwnedAction& action)
+    return unique_ptr<Echo>{new Echo{string{msg}}};
+}
+
+class MyTurboBehavior : public Behavior
+{
+public:
+
+    virtual void run(double dt) override
+    {
+        if (count == 0)
+        {
+            this->complete = true;
+            return;
+        }
+
+        this->insertInFrontOfMe(Echo::message("HEHEHEHEHE"));
+        this->insertInFrontOfMe(Delay::forSeconds(1.0));
+        this->insertInFrontOfMe(Echo::message(count));
+        count -= 1;
+    }
+
+    static unique_ptr<MyTurboBehavior> turbo()
+    {
+        return unique_ptr<MyTurboBehavior>{new MyTurboBehavior{}};
+    }
+private:
+    int count = 5;
+};
+
+int main()
+{
+    HighResTicToc timer{};
+
+    auto mylist = BehaviorList{};
+    mylist.pushFront(MyTurboBehavior::turbo());
+
+    while(mylist.running())
+    {
+        mylist.run(timer.ticToc());
+    }
+    return 0;
+}
+
+Behavior*
+BehaviorList::insertBefore(const Behavior* here, OwnedBehavior&& action)
+{
+    auto insertIter = find_if(begin(this->behaviors), end(this->behaviors),
+                              [&here](const OwnedBehavior& action)
                               {
                                   return action.get() == here;
                               });
     return this->insertAt(insertIter, move(action));
 }
 
-Action*
-ActionList::insertAfter(const Action* here, OwnedAction&& action)
+Behavior*
+BehaviorList::insertAfter(const Behavior* here, OwnedBehavior&& action)
 {
-    auto insertIter = find_if(begin(this->actions), end(this->actions),
-                              [&here](const OwnedAction& action)
+    auto insertIter = find_if(begin(this->behaviors), end(this->behaviors),
+                              [&here](const OwnedBehavior& action)
                               {
                                   return action.get() == here;
                               });
-    if (insertIter != end(this->actions))
+    if (insertIter != end(this->behaviors))
     {
         insertIter++;
     }
     return this->insertAt(insertIter, move(action));
 }
 
-Action*
-ActionList::pushFront(OwnedAction&& action)
+Behavior*
+BehaviorList::pushFront(OwnedBehavior&& action)
 {
-    return insertAt(begin(this->actions), move(action));
+    return insertAt(begin(this->behaviors), move(action));
 }
 
-Action*
-ActionList::insertAt(ActionCollection::iterator location, OwnedAction&& action)
+Behavior*
+BehaviorList::insertAt(BehaviorCollection::iterator location, OwnedBehavior&& action)
 {
-    auto insertedIter = this->actions.insert(location, move(action));
+    auto insertedIter = this->behaviors.insert(location, move(action));
     auto actionPtr = insertedIter->get();
     actionPtr->parentList = this;
     actionPtr->onStart();
@@ -156,29 +240,47 @@ ActionList::insertAt(ActionCollection::iterator location, OwnedAction&& action)
 }
 
 void
-ActionList::run(float dt)
+BehaviorList::run(double dt)
 {
-    for (const auto& action : actions)
+    // For loop is stable even if behaviors insert elements because
+    // std::list iterators are not invalidated when elements are inserted.
+    // all removal happens after the update loop
+    for (const auto& behavior : this->behaviors)
     {
-        action->run(dt);
-        if (action->blocking)
+        // don't allow a completed behavior to run or block others
+        if (behavior->complete)
+        {
+            continue;
+        }
+
+        behavior->run(dt);
+        if (behavior->blocking)
         {
             break;
         }
     }
 
-    // remove completed
-    auto startOfCompleted = partition(begin(this->actions), end(this->actions),
-                                      [](const OwnedAction& action)
-                                      {
-                                          return !action->complete;
-                                      });
+    // move completed actions to the end of the list (note that stable partition
+    // preserves relative ordering of behaviors)
+    auto startOfCompleted =
+        stable_partition(begin(this->behaviors), end(this->behaviors),
+                         [](const OwnedBehavior& action)
+                         {
+                             return !action->complete;
+                         });
     // run onEnd for completed actions
-    for_each(startOfCompleted, end(this->actions), [](const OwnedAction& action)
+    for_each(startOfCompleted, end(this->behaviors), [](const OwnedBehavior& action)
     {
         action->onEnd();
     });
     // erase the ended actions
-    this->actions.erase(startOfCompleted, end(this->actions));
+    this->behaviors.erase(startOfCompleted, end(this->behaviors));
 }
+
+bool
+BehaviorList::running() const
+{
+    return !this->behaviors.empty();
+}
+
 
