@@ -6,6 +6,7 @@
 #include <tetra/EventStream.hpp>
 #include <tetra/AdaptiveOrtho.hpp>
 #include <sdl/SDLEvents.hpp>
+#include <tetra/TicTocClock.hpp>
 
 #include <array>
 #include <exception>
@@ -119,14 +120,16 @@ void sdlmain()
         .minorVersion(3)
         .build();
 
+    auto frameTimer = HighResTicToc{};
+    auto totalTime = HighResTicToc{};
+
     auto max = 2.0f*3.1415f;
     auto count = 75;
     auto vertices = vector<Vertex>{};
     auto cobwebPipeline = CobwebPipeline{eventStream};
 
     auto computeVertices = [&]() {
-        auto time = SDL_GetTicks();
-        auto ft = (float)time/1000.0f;
+        auto ft = totalTime.toc();
 
         vertices.clear();
         for (int i = 0; i < count; i++)
@@ -148,6 +151,7 @@ void sdlmain()
         sdl.pushEvents();
         eventStream.dispatch();
 
+        cout << "frame time: " << frameTimer.ticToc() << endl;
         computeVertices();
         cobwebPipeline.setVertices(vertices);
 

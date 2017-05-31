@@ -52,7 +52,6 @@ public:
     {
         TickType now = TimerStrategy::now();
         std::chrono::duration<double> duration = now - this->lastTick;
-        this->lastTick = now;
 
         return duration.count();
     }
