@@ -128,17 +128,16 @@ public:
 
     virtual void run(double dt) override;
 
-    template <class T>
-    static unique_ptr<Echo> message(const T& msg)
-    {
-        using std::to_string;
-        return unique_ptr<Echo>{new Echo{to_string(msg)}};
-    }
-
-    static unique_ptr<Echo> message(const char* msg);
+    static unique_ptr<Echo> message(const string& msg);
 private:
     const std::string msg;
 };
+
+unique_ptr<Echo>
+Echo::message(const string& msg)
+{
+    return unique_ptr<Echo>{new Echo{msg}};
+}
 
 Echo::Echo(const std::string& msg)
     : msg{msg}
@@ -151,28 +150,38 @@ Echo::run(double dt)
     this->complete = true;
 }
 
-unique_ptr<Echo>
-Echo::message(const char* msg)
-{
-    return unique_ptr<Echo>{new Echo{string{msg}}};
-}
-
 class MyTurboBehavior : public Behavior
 {
 public:
+    virtual void onStart() override
+    {
+        cout << " -> starting my turbo behavior" << "\n"
+             << " -> So pretend to gather some resources or something"
+             << endl;
+    }
+
+    virtual void onEnd() override
+    {
+        cout << " -> ending my turbo behavior" << "\n"
+             << " -> so pretend to clean things up or something"
+             << endl;
+    }
 
     virtual void run(double dt) override
     {
-        if (count == 0)
+        cout << " -> count is " << this->count << " wait 1 second" << endl;
+
+        this->insertInFrontOfMe(Delay::forSeconds(1.0));
+        this->insertInFrontOfMe(
+            Echo::message("finished delay for count " + to_string(this->count))
+        );
+        this->count -= 1;
+
+        if (this->count == 0)
         {
             this->complete = true;
             return;
         }
-
-        this->insertInFrontOfMe(Echo::message("HEHEHEHEHE"));
-        this->insertInFrontOfMe(Delay::forSeconds(1.0));
-        this->insertInFrontOfMe(Echo::message(count));
-        count -= 1;
     }
 
     static unique_ptr<MyTurboBehavior> turbo()
@@ -185,8 +194,13 @@ private:
 
 int main()
 {
-    HighResTicToc timer{};
+    // Lets use this to track the total execution time
+    auto totalTimer = HighResTicToc{};
 
+    // Lets use this for tracking time per frame
+    auto timer = HighResTicToc{};
+
+    // Create the behavior list and push my turbo action into it
     auto mylist = BehaviorList{};
     mylist.pushFront(MyTurboBehavior::turbo());
 
@@ -194,6 +208,25 @@ int main()
     {
         mylist.run(timer.ticToc());
     }
+
+    cout << "completed in " << totalTimer.toc() << " seconds" << endl;
+    /*
+     * Did you notice that the total time is _more_ than 5 seconds?!
+     * This is actually not incorrect behavior, there are two factors at play here:
+     *
+     * 1 - The delay is inserted by my turbo behavior _before_ itself.
+     *     This means that the delay only starts burning down on the next frame.
+     *     This means that a delay of 1 second which is created this frame, will
+     *     actually end 1 second + ~16 milliseconds from now.
+     *     The behavior is expected -- once the delay starts ticking it expires
+     *     after 1 second.
+     *
+     * 2 - The c++ standard this_thread::sleep_for is used inside of the TicTocClock
+     *     to sleep if the min duration hasn't been met.
+     *     The sleep_for method is allowed to be somewhat inprecise and sleep for
+     *     longer than requested. So depending on the std lib implementation and
+     *     the underlying OS there is a bit of room for variablility.
+     */
     return 0;
 }
 
