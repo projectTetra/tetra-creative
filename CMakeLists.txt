@@ -43,3 +43,4 @@ target_link_libraries(lissajous ${SDL2_LIBRARY})
 target_link_libraries(lissajous ${GLEW_LIBRARY})
 
 add_executable(actionlist ./sketches/actionlist.cpp)
+target_link_libraries(actionlist tcCore)
